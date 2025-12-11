@@ -1,4 +1,4 @@
-require('dotenv').config(); // [cite: 18]
+require('dotenv').config();
 const http = require('http');
 const express = require('express');
 const { program } = require('commander');
@@ -7,9 +7,9 @@ const path = require('path');
 const multer = require('multer');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
-const { Pool } = require('pg'); // [cite: 7]
+const { Pool } = require('pg');
 
-// 1. Налаштування аргументів (залишаємо для сумісності, але пріоритет у .env)
+// 1. Налаштування аргументів
 program
   .option('-h, --host <host>', 'Server address', process.env.HOST || '0.0.0.0')
   .option('-p, --port <port>', 'Server port', process.env.PORT || '3000')
@@ -44,6 +44,8 @@ pool.connect((err, client, release) => {
 });
 
 const app = express();
+
+console.log("TEST HOT RELOA");
 
 // --- НАЛАШТУВАННЯ SWAGGER ---
 const swaggerOptions = {
@@ -97,29 +99,35 @@ app.get('/SearchForm.html', (req, res) => {
 /**
  * @swagger
  * /register:
- * post:
- * tags: [Inventory]
- * summary: Реєстрація нового пристрою (DB)
- * requestBody:
- * content:
- * multipart/form-data:
- * schema:
- * type: object
- * required:
- * - inventory_name
- * properties:
- * inventory_name:
- * type: string
- * description:
- * type: string
- * photo:
- * type: string
- * format: binary
- * responses:
- * 201:
- * description: Created
- * 400:
- * description: Bad Request
+ *   post:
+ *     tags: [Inventory]
+ *     summary: Реєстрація нового пристрою (DB)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - inventory_name
+ *             properties:
+ *               inventory_name:
+ *                 type: string
+ *                 description: Назва пристрою
+ *               description:
+ *                 type: string
+ *                 description: Опис пристрою
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Фото пристрою
+ *     responses:
+ *       201:
+ *         description: Пристрій успішно створено
+ *       400:
+ *         description: Некоректний запит - відсутнє ім'я пристрою
+ *       500:
+ *         description: Помилка бази даних
  */
 app.post('/register', upload.single('photo'), async (req, res) => {
   const { inventory_name, description } = req.body;
@@ -144,14 +152,36 @@ app.post('/register', upload.single('photo'), async (req, res) => {
 /**
  * @swagger
  * /inventory:
- * get:
- * tags: [Inventory]
- * summary: Отримати список всіх речей (DB)
- * responses:
- * 200:
- * description: Список речей
+ *   get:
+ *     tags: [Inventory]
+ *     summary: Отримати список всіх речей (DB)
+ *     responses:
+ *       200:
+ *         description: Список всіх речей з бази даних
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   photo:
+ *                     type: string
+ *                   photoUrl:
+ *                     type: string
+ *       500:
+ *         description: Помилка бази даних
  */
 app.get('/inventory', async (req, res) => {
+  
+  debugger;
+
   try {
     const result = await pool.query('SELECT * FROM inventory ORDER BY id ASC');
     const response = result.rows.map(item => ({
@@ -168,20 +198,38 @@ app.get('/inventory', async (req, res) => {
 /**
  * @swagger
  * /inventory/{id}:
- * get:
- * tags: [Inventory]
- * summary: Отримати річ за ID (DB)
- * parameters:
- * - in: path
- * name: id
- * required: true
- * schema:
- * type: integer
- * responses:
- * 200:
- * description: Знайдена річ
- * 404:
- * description: Not Found
+ *   get:
+ *     tags: [Inventory]
+ *     summary: Отримати річ за ID (DB)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID речі
+ *     responses:
+ *       200:
+ *         description: Знайдена річ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 photo:
+ *                   type: string
+ *                 photoUrl:
+ *                   type: string
+ *       404:
+ *         description: Річ не знайдено
+ *       500:
+ *         description: Помилка бази даних
  */
 app.get('/inventory/:id', async (req, res) => {
   const id = parseInt(req.params.id);
@@ -206,18 +254,28 @@ app.get('/inventory/:id', async (req, res) => {
 /**
  * @swagger
  * /inventory/{id}/photo:
- * get:
- * tags: [Inventory]
- * summary: Отримати файл фото
- * parameters:
- * - in: path
- * name: id
- * required: true
- * schema:
- * type: integer
- * responses:
- * 200:
- * description: Зображення JPEG
+ *   get:
+ *     tags: [Inventory]
+ *     summary: Отримати файл фото
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID речі
+ *     responses:
+ *       200:
+ *         description: Зображення JPEG
+ *         content:
+ *           image/jpeg:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Фото не знайдено або річ не існує
+ *       500:
+ *         description: Помилка бази даних
  */
 app.get('/inventory/:id/photo', async (req, res) => {
   const id = parseInt(req.params.id);
@@ -247,16 +305,44 @@ app.get('/inventory/:id/photo', async (req, res) => {
 /**
  * @swagger
  * /inventory/{id}:
- * put:
- * tags: [Inventory]
- * summary: Оновити дані речі (ім'я/опис)
+ *   put:
+ *     tags: [Inventory]
+ *     summary: Оновити дані речі (ім'я/опис)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID речі
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               inventory_name: 
+ *                 type: string
+ *                 description: Нова назва пристрою
+ *               description: 
+ *                 type: string
+ *                 description: Новий опис пристрою
+ *     responses:
+ *       200:
+ *         description: Дані успішно оновлено
+ *       400:
+ *         description: Немає полів для оновлення
+ *       404:
+ *         description: Річ не знайдено
+ *       500:
+ *         description: Помилка бази даних
  */
 app.put('/inventory/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   const { inventory_name, description } = req.body;
 
   try {
-    // Динамічне формування запиту, щоб оновлювати лише передані поля
     let fields = [];
     let values = [];
     let idx = 1;
@@ -289,9 +375,38 @@ app.put('/inventory/:id', async (req, res) => {
 /**
  * @swagger
  * /inventory/{id}/photo:
- * put:
- * tags: [Inventory]
- * summary: Оновити лише фото
+ *   put:
+ *     tags: [Inventory]
+ *     summary: Оновити лише фото
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID речі
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - photo
+ *             properties:
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Нове фото пристрою
+ *     responses:
+ *       200:
+ *         description: Фото успішно оновлено
+ *       400:
+ *         description: Фото не завантажено
+ *       404:
+ *         description: Річ не знайдено
+ *       500:
+ *         description: Помилка бази даних
  */
 app.put('/inventory/:id/photo', upload.single('photo'), async (req, res) => {
   const id = parseInt(req.params.id);
@@ -314,9 +429,23 @@ app.put('/inventory/:id/photo', upload.single('photo'), async (req, res) => {
 /**
  * @swagger
  * /inventory/{id}:
- * delete:
- * tags: [Inventory]
- * summary: Видалити річ
+ *   delete:
+ *     tags: [Inventory]
+ *     summary: Видалити річ
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID речі для видалення
+ *     responses:
+ *       200:
+ *         description: Річ успішно видалено
+ *       404:
+ *         description: Річ не знайдено
+ *       500:
+ *         description: Помилка бази даних
  */
 app.delete('/inventory/:id', async (req, res) => {
   const id = parseInt(req.params.id);
@@ -326,7 +455,6 @@ app.delete('/inventory/:id', async (req, res) => {
     
     if (result.rowCount === 0) return res.status(404).send('Not Found');
     
-    // Опціонально: тут можна додати видалення файлу з диска (fs.unlink)
     res.status(200).send('Deleted');
   } catch (err) {
     console.error(err);
@@ -337,9 +465,44 @@ app.delete('/inventory/:id', async (req, res) => {
 /**
  * @swagger
  * /search:
- * post:
- * tags: [Search]
- * summary: Пошук речі
+ *   post:
+ *     tags: [Search]
+ *     summary: Пошук речі за ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: ID речі для пошуку
+ *               includePhoto:
+ *                 type: string
+ *                 description: Включити посилання на фото в опис (on/true)
+ *     responses:
+ *       200:
+ *         description: Результат пошуку
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 photo:
+ *                   type: string
+ *       404:
+ *         description: Річ не знайдено
+ *       500:
+ *         description: Помилка бази даних
  */
 app.post('/search', async (req, res) => {
     const { id, includePhoto } = req.body; 

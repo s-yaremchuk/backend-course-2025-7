@@ -4,9 +4,9 @@
   "description": "Inventory Service",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon --inspect=0.0.0.0:9229 index.js"
-  },
+  "start": "node index.js",
+  "dev": "nodemon -L --inspect=0.0.0.0:9229 index.js"
+},
   "dependencies": {
     "commander": "^11.0.0",
     "dotenv": "^17.2.3",
